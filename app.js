@@ -1,3 +1,4 @@
+
 const $ = (id) => document.getElementById(id);
 const cfg = window.AGENDA_CONFIG || {};
 const hasSupabaseConfig = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(cfg.supabaseUrl || '') && !!cfg.supabaseAnonKey && !cfg.supabaseAnonKey.includes('INSERISCI');
@@ -7,6 +8,12 @@ if (hasSupabaseConfig) {
   supabase = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 }
 const STORAGE_KEY = 'agenda-appointments-v1';
+const ADMIN_AUDIT_KEY = 'agenda-admin-audit-demo-v1';
+const ADMIN_DEMO_USERS = [
+  { id: 'demo-mario', name: 'Mario Rossi', email: 'mario.demo@example.test', status: 'Attivo' },
+  { id: 'demo-laura', name: 'Laura Bianchi', email: 'laura.demo@example.test', status: 'Attivo' },
+  { id: 'demo-luca', name: 'Luca Verdi', email: 'luca.demo@example.test', status: 'Sospeso' }
+];
 const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
 const shortMonths = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 const state = {
@@ -17,7 +24,8 @@ const state = {
   search: '',
   authMode: 'login',
   demo: !supabase,
-  busy: false
+  busy: false,
+  adminDemoViewing: null
 };
 
 function toISODate(date) {
@@ -33,35 +41,150 @@ function parseDate(value) {
 function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 }
-function getLocalAppointments() {
+function buildWazeUrl(location) {
+  const url = new URL('https://waze.com/ul');
+  url.searchParams.set('q', String(location || '').trim());
+  url.searchParams.set('navigate', 'yes');
+  return url.toString();
+}
+function currentStorageKey() {
+  return state.adminDemoViewing ? `${STORAGE_KEY}-${state.adminDemoViewing.id}` : STORAGE_KEY;
+}
+function getLocalAppointments(key = currentStorageKey()) {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const parsed = JSON.parse(localStorage.getItem(key) || '[]');
     return Array.isArray(parsed) ? parsed : [];
   } catch (_) { return []; }
 }
 function saveLocalAppointments() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.appointments));
+  localStorage.setItem(currentStorageKey(), JSON.stringify(state.appointments));
+}
+function getAdminAudit() {
+  try { const value = JSON.parse(localStorage.getItem(ADMIN_AUDIT_KEY) || '[]'); return Array.isArray(value) ? value : []; } catch (_) { return []; }
+}
+function logAdminAction(action, user, details = '') {
+  if (!state.adminDemoViewing) return;
+  const log = getAdminAudit();
+  log.unshift({ action, user: user?.name || state.adminDemoViewing.name, details, at: new Date().toISOString() });
+  localStorage.setItem(ADMIN_AUDIT_KEY, JSON.stringify(log.slice(0, 100)));
+}
+function demoUserAppointments(userId) {
+  try { const value = JSON.parse(localStorage.getItem(`${STORAGE_KEY}-${userId}`) || '[]'); return Array.isArray(value) ? value : []; } catch (_) { return []; }
+}
+function openAdminDemo() {
+  if (supabase) { showToast('La demo amministratore è disattivata quando è collegato un account reale.'); return; }
+  closeModal('accountModal');
+  renderAdminPanel();
+  openModal('adminModal');
+}
+function renderAdminPanel() {
+  const users = $('adminUserList');
+  users.innerHTML = '';
+  ADMIN_DEMO_USERS.forEach((user) => {
+    const card = document.createElement('div');
+    card.className = 'admin-user-card';
+    const info = document.createElement('div');
+    info.className = 'admin-user-info';
+    const name = document.createElement('strong'); name.textContent = user.name;
+    const email = document.createElement('span'); email.textContent = user.email;
+    const status = document.createElement('small'); status.textContent = user.status;
+    info.append(name, email, status);
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'secondary-button'; button.textContent = 'Apri agenda';
+    button.addEventListener('click', () => openDemoUserAgenda(user.id));
+    card.append(info, button); users.appendChild(card);
+  });
+  const auditHolder = $('adminAuditList');
+  const log = getAdminAudit(); auditHolder.innerHTML = '';
+  if (!log.length) { auditHolder.innerHTML = '<p class="admin-audit-empty">Non ci sono ancora operazioni registrate.</p>'; return; }
+  log.slice(0, 12).forEach((entry) => {
+    const row = document.createElement('div'); row.className = 'admin-audit-row';
+    const action = document.createElement('strong'); action.textContent = entry.action;
+    const detail = document.createElement('span'); detail.textContent = `${entry.user}${entry.details ? ` · ${entry.details}` : ''}`;
+    const time = document.createElement('small'); time.textContent = new Date(entry.at).toLocaleString('it-IT');
+    row.append(action, detail, time); auditHolder.appendChild(row);
+  });
+}
+function openDemoUserAgenda(userId) {
+  const user = ADMIN_DEMO_USERS.find((item) => item.id === userId);
+  if (!user) return;
+  saveLocalAppointments();
+  state.adminDemoViewing = user;
+  state.appointments = demoUserAppointments(userId);
+  state.selectedDate = toISODate(new Date());
+  state.currentDate = new Date();
+  logAdminAction('Apertura agenda utente', user, 'Consultazione amministrativa demo');
+  closeModal('adminModal');
+  $('adminViewedUserName').textContent = user.name;
+  $('adminViewBanner').classList.remove('hidden');
+  renderAll();
+  showToast(`Stai visualizzando l’agenda demo di ${user.name}.`);
+}
+function exitAdminDemoView() {
+  if (!state.adminDemoViewing) return;
+  saveLocalAppointments();
+  const previous = state.adminDemoViewing;
+  logAdminAction('Uscita dalla vista utente', previous);
+  state.adminDemoViewing = null;
+  state.appointments = getLocalAppointments();
+  $('adminViewBanner').classList.add('hidden');
+  renderAll();
+  showToast('Sei tornato alla tua agenda locale.');
 }
 function normalizeRow(row) {
   return {
     id: row.id,
     title: row.title,
     notes: row.notes || '',
+    location: row.location || '',
     event_date: row.event_date,
     event_time: String(row.event_time || '09:00').slice(0,5),
     reminder_enabled: !!row.reminder_enabled,
     reminder_time: String(row.reminder_time || '09:00').slice(0,5),
     reminder_at: row.reminder_at || null,
-    reminder_sent_at: row.reminder_sent_at || null
+    reminder_sent_at: row.reminder_sent_at || null,
+    repeat_type: row.repeat_type || 'none',
+    repeat_weekday: row.repeat_weekday === null || row.repeat_weekday === undefined ? null : Number(row.repeat_weekday),
+    repeat_until: row.repeat_until || null,
+    excluded_dates: Array.isArray(row.excluded_dates) ? row.excluded_dates : []
   };
+}
+function recurrenceType(item) { return item.repeat_type || 'none'; }
+function occursOnDate(item, dateISO) {
+  if (item.excluded_dates?.includes(dateISO)) return false;
+  if (dateISO < item.event_date) return false;
+  if (item.repeat_until && dateISO > item.repeat_until) return false;
+  const type = recurrenceType(item);
+  if (type === 'none') return dateISO === item.event_date;
+  const date = parseDate(dateISO);
+  const start = parseDate(item.event_date);
+  if (type === 'daily') return true;
+  if (type === 'weekly') {
+    const wanted = item.repeat_weekday === null || item.repeat_weekday === undefined ? start.getDay() : Number(item.repeat_weekday);
+    return date.getDay() === wanted;
+  }
+  if (type === 'monthly') return date.getDate() === start.getDate();
+  if (type === 'yearly') return date.getDate() === start.getDate() && date.getMonth() === start.getMonth();
+  return dateISO === item.event_date;
+}
+function occurrencesForDate(items, dateISO) {
+  return sortAppointments(items.filter((item) => occursOnDate(item, dateISO)).map((item) => ({ ...item, occurrence_date: dateISO })));
+}
+function occurrencesInRange(items, startISO, endISO) {
+  const result = [];
+  const start = parseDate(startISO); const end = parseDate(endISO);
+  for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+    const iso = toISODate(cursor);
+    occurrencesForDate(items, iso).forEach((item) => result.push(item));
+  }
+  return sortAppointments(result);
 }
 function getFilteredAppointments() {
   const query = state.search.trim().toLocaleLowerCase('it');
   if (!query) return state.appointments;
-  return state.appointments.filter((item) => `${item.title} ${item.notes || ''}`.toLocaleLowerCase('it').includes(query));
+  return state.appointments.filter((item) => `${item.title} ${item.notes || ''} ${item.location || ''}`.toLocaleLowerCase('it').includes(query));
 }
 function sortAppointments(items) {
-  return [...items].sort((a,b) => `${a.event_date}T${a.event_time}`.localeCompare(`${b.event_date}T${b.event_time}`));
+  return [...items].sort((a,b) => `${a.occurrence_date || a.event_date}T${a.event_time}`.localeCompare(`${b.occurrence_date || b.event_date}T${b.event_time}`));
 }
 function localReminderISO(eventDate, reminderTime) {
   const [y,m,d] = eventDate.split('-').map(Number);
@@ -86,7 +209,7 @@ function closeModal(id) {
   const modal = $(id);
   modal.classList.add('hidden');
   modal.setAttribute('aria-hidden','true');
-  if (!$('appointmentModal').classList.contains('hidden') || !$('accountModal').classList.contains('hidden')) return;
+  if (!$('appointmentModal').classList.contains('hidden') || !$('accountModal').classList.contains('hidden') || !$('adminModal').classList.contains('hidden')) return;
   document.body.style.overflow = '';
 }
 function updateDemoNotice() {
@@ -115,7 +238,7 @@ function renderCalendar() {
   for (let i = 0; i < 42; i++) {
     const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
     const dateISO = toISODate(date);
-    const dayEvents = sortAppointments(events.filter((item) => item.event_date === dateISO));
+    const dayEvents = occurrencesForDate(events, dateISO);
     const cell = document.createElement('div');
     cell.className = 'calendar-day' + (date.getMonth() !== m ? ' outside' : '') + (dateISO === todayISO ? ' today' : '') + (dateISO === state.selectedDate ? ' selected' : '');
     cell.setAttribute('role','button');
@@ -127,7 +250,7 @@ function renderCalendar() {
       chip.className = 'event-chip' + (item.reminder_enabled ? ' has-reminder' : '');
       chip.textContent = `${item.event_time} ${item.title}`;
       chip.title = `${item.event_time} · ${item.title}`;
-      chip.addEventListener('click', (event) => { event.stopPropagation(); editAppointment(item.id); });
+      chip.addEventListener('click', (event) => { event.stopPropagation(); editAppointment(item.id, item.occurrence_date); });
       cell.appendChild(chip);
     });
     if (dayEvents.length > 2) {
@@ -146,7 +269,7 @@ function renderSelectedDay() {
   const date = parseDate(state.selectedDate);
   $('selectedDayTitle').textContent = `${date.getDate()} ${monthNames[date.getMonth()]}`;
   $('selectedDayNumber').textContent = date.getDate();
-  const dayEvents = sortAppointments(getFilteredAppointments().filter((item) => item.event_date === state.selectedDate));
+  const dayEvents = occurrencesForDate(getFilteredAppointments(), state.selectedDate);
   const holder = $('dayEvents');
   holder.innerHTML = '';
   if (!dayEvents.length) {
@@ -156,15 +279,53 @@ function renderSelectedDay() {
   dayEvents.forEach((item) => {
     const row = document.createElement('div');
     row.className = 'day-event';
-    row.innerHTML = `<span class="event-time">${escapeHTML(item.event_time)}</span><div class="event-main"><strong>${escapeHTML(item.title)}</strong>${item.notes ? `<p>${escapeHTML(item.notes)}</p>` : ''}</div><i class="event-reminder ${item.reminder_enabled ? '' : 'off'}" title="${item.reminder_enabled ? 'Promemoria attivo' : 'Promemoria disattivato'}"></i>`;
-    row.addEventListener('click', () => editAppointment(item.id));
+    const time = document.createElement('span');
+    time.className = 'event-time';
+    time.textContent = item.event_time;
+    const main = document.createElement('div');
+    main.className = 'event-main';
+    const title = document.createElement('strong');
+    title.textContent = item.title;
+    main.appendChild(title);
+    if (recurrenceType(item) !== 'none') {
+      const repeatTag = document.createElement('span');
+      repeatTag.className = 'event-repeat-label';
+      repeatTag.textContent = 'Ricorrente';
+      main.appendChild(repeatTag);
+    }
+    if (item.notes) {
+      const notes = document.createElement('p');
+      notes.textContent = item.notes;
+      main.appendChild(notes);
+    }
+    if (item.location) {
+      const location = document.createElement('p');
+      location.className = 'event-location';
+      location.textContent = `📍 ${item.location}`;
+      main.appendChild(location);
+      const wazeLink = document.createElement('a');
+      wazeLink.className = 'waze-link';
+      wazeLink.href = buildWazeUrl(item.location);
+      wazeLink.target = '_blank';
+      wazeLink.rel = 'noopener noreferrer';
+      wazeLink.textContent = 'Apri in Waze ↗';
+      wazeLink.setAttribute('aria-label', `Apri in Waze: ${item.location}`);
+      wazeLink.addEventListener('click', (event) => event.stopPropagation());
+      main.appendChild(wazeLink);
+    }
+    const reminder = document.createElement('i');
+    reminder.className = `event-reminder ${item.reminder_enabled ? '' : 'off'}`;
+    reminder.title = item.reminder_enabled ? 'Promemoria attivo' : 'Promemoria disattivato';
+    row.append(time, main, reminder);
+    row.addEventListener('click', () => editAppointment(item.id, item.occurrence_date));
     row.style.cursor = 'pointer';
     holder.appendChild(row);
   });
 }
 function renderUpcoming() {
   const today = toISODate(new Date());
-  const items = sortAppointments(getFilteredAppointments().filter((item) => item.event_date >= today)).slice(0,5);
+  const horizon = new Date(); horizon.setFullYear(horizon.getFullYear() + 5);
+  const items = occurrencesInRange(getFilteredAppointments(), today, toISODate(horizon)).slice(0,5);
   $('upcomingCount').textContent = items.length;
   const list = $('upcomingList');
   list.innerHTML = '';
@@ -173,11 +334,11 @@ function renderUpcoming() {
     return;
   }
   items.forEach((item) => {
-    const date = parseDate(item.event_date);
+    const date = parseDate(item.occurrence_date || item.event_date);
     const row = document.createElement('div');
     row.className = 'upcoming-item';
-    row.innerHTML = `<div class="upcoming-date"><strong>${date.getDate()}</strong><span>${shortMonths[date.getMonth()]}</span></div><div class="upcoming-copy"><strong>${escapeHTML(item.title)}</strong><span>${escapeHTML(item.event_time)} · ${item.reminder_enabled ? 'Promemoria attivo' : 'Senza promemoria'}</span></div>`;
-    row.addEventListener('click', () => { state.selectedDate = item.event_date; state.currentDate = parseDate(item.event_date); renderAll(); editAppointment(item.id); });
+    row.innerHTML = `<div class="upcoming-date"><strong>${date.getDate()}</strong><span>${shortMonths[date.getMonth()]}</span></div><div class="upcoming-copy"><strong>${escapeHTML(item.title)}</strong><span>${escapeHTML(item.event_time)} · ${item.reminder_enabled ? 'Promemoria attivo' : 'Senza promemoria'}${recurrenceType(item) !== 'none' ? ' · Ripetuto' : ''}</span>${item.location ? `<span class="upcoming-location">📍 ${escapeHTML(item.location)}</span>` : ''}</div>`;
+    row.addEventListener('click', () => { const occurrenceDate = item.occurrence_date || item.event_date; state.selectedDate = occurrenceDate; state.currentDate = parseDate(occurrenceDate); renderAll(); editAppointment(item.id, occurrenceDate); });
     row.style.cursor = 'pointer';
     list.appendChild(row);
   });
@@ -202,37 +363,95 @@ function setBusy(button, busy, busyText='Salvataggio...') {
 function openNewAppointment(date = state.selectedDate) {
   $('appointmentForm').reset();
   $('appointmentId').value = '';
+  $('appointmentOccurrenceDate').value = '';
+  $('appointmentSeriesStartDate').value = '';
   $('appointmentModalTitle').textContent = 'Nuovo impegno';
   $('saveAppointmentButton').textContent = 'Salva impegno';
   $('deleteAppointmentButton').classList.add('hidden');
   $('appointmentDate').value = date;
   $('appointmentTime').value = '09:00';
+  $('appointmentRepeat').value = 'none';
+  $('repeatWeekday').value = String(new Date(`${date}T12:00:00`).getDay());
+  $('repeatEndMode').value = 'never';
+  $('repeatUntil').value = '';
   $('reminderEnabled').checked = true;
   $('reminderTime').value = '09:00';
   $('appointmentError').textContent = '';
+  $('seriesScopeRow').classList.add('hidden');
   syncReminderTimeVisibility();
+  syncRecurrenceVisibility();
   openModal('appointmentModal');
   setTimeout(() => $('appointmentTitle').focus(), 50);
 }
-function editAppointment(id) {
+function editAppointment(id, occurrenceDate = null) {
   const item = state.appointments.find((entry) => entry.id === id);
   if (!item) return;
+  const shownDate = occurrenceDate || item.event_date;
   $('appointmentId').value = item.id;
+  $('appointmentOccurrenceDate').value = shownDate;
+  $('appointmentSeriesStartDate').value = item.event_date;
   $('appointmentTitle').value = item.title;
   $('appointmentNotes').value = item.notes || '';
-  $('appointmentDate').value = item.event_date;
+  $('appointmentLocation').value = item.location || '';
+  $('appointmentDate').value = shownDate;
   $('appointmentTime').value = item.event_time;
+  $('appointmentRepeat').value = recurrenceType(item);
+  $('repeatWeekday').value = String(item.repeat_weekday ?? new Date(`${item.event_date}T12:00:00`).getDay());
+  $('repeatEndMode').value = item.repeat_until ? 'date' : 'never';
+  $('repeatUntil').value = item.repeat_until || '';
   $('reminderEnabled').checked = item.reminder_enabled;
   $('reminderTime').value = item.reminder_time || '09:00';
   $('appointmentModalTitle').textContent = 'Modifica impegno';
   $('saveAppointmentButton').textContent = 'Salva modifiche';
   $('deleteAppointmentButton').classList.remove('hidden');
   $('appointmentError').textContent = '';
+  const isSeries = recurrenceType(item) !== 'none';
+  $('seriesScopeRow').classList.toggle('hidden', !isSeries);
+  const defaultScope = 'single';
+  document.querySelector(`input[name="appointmentScope"][value="${defaultScope}"]`).checked = true;
   syncReminderTimeVisibility();
+  syncRecurrenceVisibility();
   openModal('appointmentModal');
 }
 function syncReminderTimeVisibility() {
   $('reminderTimeRow').classList.toggle('hidden', !$('reminderEnabled').checked);
+}
+function syncRecurrenceVisibility() {
+  const repeat = $('appointmentRepeat').value;
+  $('repeatWeekdayRow').classList.toggle('hidden', repeat !== 'weekly');
+  $('repeatUntilRow').classList.toggle('hidden', $('repeatEndMode').value !== 'date' || repeat === 'none');
+  if (repeat === 'none') $('repeatEndMode').value = 'never';
+}
+function selectedSeriesScope() {
+  return document.querySelector('input[name="appointmentScope"]:checked')?.value || 'single';
+}
+function syncSeriesScopeDate() {
+  if (!$('appointmentId').value || $('seriesScopeRow').classList.contains('hidden')) return;
+  $('appointmentDate').value = selectedSeriesScope() === 'series'
+    ? $('appointmentSeriesStartDate').value
+    : $('appointmentOccurrenceDate').value;
+}
+async function persistAppointmentRows(rows, deleteIds = []) {
+  if (supabase && state.user) {
+    for (const id of deleteIds) {
+      const { error } = await supabase.from('appointments').delete().eq('id', id);
+      if (error) throw error;
+    }
+    if (rows.length) {
+      const dbRows = rows.map((row) => ({ ...row, user_id: state.user.id }));
+      const { error } = await supabase.from('appointments').upsert(dbRows);
+      if (error) throw error;
+    }
+    await refreshAppointments();
+    return;
+  }
+  deleteIds.forEach((id) => { state.appointments = state.appointments.filter((item) => item.id !== id); });
+  rows.forEach((row) => {
+    const index = state.appointments.findIndex((item) => item.id === row.id);
+    if (index >= 0) state.appointments[index] = row;
+    else state.appointments.push(row);
+  });
+  saveLocalAppointments();
 }
 async function saveAppointment(event) {
   event.preventDefault();
@@ -241,40 +460,64 @@ async function saveAppointment(event) {
   const eventTime = $('appointmentTime').value;
   const reminderEnabled = $('reminderEnabled').checked;
   const reminderTime = $('reminderTime').value || '09:00';
+  const repeatType = $('appointmentRepeat').value || 'none';
+  const repeatUntil = repeatType !== 'none' && $('repeatEndMode').value === 'date' ? $('repeatUntil').value : null;
   if (!title || !eventDate || !eventTime) {
     $('appointmentError').textContent = 'Compila il titolo, la data e l’ora.';
     return;
   }
+  if (repeatUntil && repeatUntil < eventDate) {
+    $('appointmentError').textContent = 'La data di fine deve essere uguale o successiva alla data iniziale.';
+    return;
+  }
   const id = $('appointmentId').value || crypto.randomUUID();
+  const existing = state.appointments.find((item) => item.id === id);
+  const occurrenceDate = $('appointmentOccurrenceDate').value || eventDate;
+  const scope = existing && recurrenceType(existing) !== 'none' ? selectedSeriesScope() : 'series';
   const payload = {
     id,
     title,
     notes: $('appointmentNotes').value.trim(),
+    location: $('appointmentLocation').value.trim(),
     event_date: eventDate,
     event_time: eventTime,
     reminder_enabled: reminderEnabled,
     reminder_time: reminderTime,
     reminder_at: reminderEnabled ? localReminderISO(eventDate, reminderTime) : null,
     reminder_sent_at: null,
-    reminder_claimed_at: null
+    reminder_claimed_at: null,
+    repeat_type: repeatType,
+    repeat_weekday: repeatType === 'weekly' ? Number($('repeatWeekday').value) : null,
+    repeat_until: repeatUntil,
+    excluded_dates: existing?.excluded_dates || []
   };
   const saveButton = $('saveAppointmentButton');
   setBusy(saveButton, true);
   $('appointmentError').textContent = '';
   try {
-    if (supabase && state.user) {
-      const dbPayload = { ...payload, user_id: state.user.id };
-      const { error } = await supabase.from('appointments').upsert(dbPayload);
-      if (error) throw error;
-      await refreshAppointments();
+    if (existing && recurrenceType(existing) !== 'none' && scope === 'single') {
+      const master = { ...existing, excluded_dates: [...new Set([...(existing.excluded_dates || []), occurrenceDate, eventDate])] };
+      const occurrenceCopy = {
+        ...payload,
+        id: crypto.randomUUID(),
+        event_date: eventDate,
+        reminder_at: reminderEnabled ? localReminderISO(eventDate, reminderTime) : null,
+        repeat_type: 'none', repeat_weekday: null, repeat_until: null, excluded_dates: []
+      };
+      await persistAppointmentRows([master, occurrenceCopy]);
+      if (state.adminDemoViewing) logAdminAction('Modifica singola occorrenza', state.adminDemoViewing, `${title} · ${occurrenceDate}`);
+      state.selectedDate = eventDate;
+      state.currentDate = parseDate(eventDate);
     } else {
-      const index = state.appointments.findIndex((item) => item.id === id);
-      if (index >= 0) state.appointments[index] = payload;
-      else state.appointments.push(payload);
-      saveLocalAppointments();
+      if (existing && recurrenceType(existing) !== 'none' && scope === 'series') {
+        payload.excluded_dates = existing.excluded_dates || [];
+        payload.reminder_at = reminderEnabled ? localReminderISO(payload.event_date, reminderTime) : null;
+      }
+      await persistAppointmentRows([payload]);
+      if (state.adminDemoViewing) logAdminAction(existing ? 'Modifica impegno' : 'Creazione impegno', state.adminDemoViewing, title);
+      state.selectedDate = payload.event_date;
+      state.currentDate = parseDate(payload.event_date);
     }
-    state.selectedDate = eventDate;
-    state.currentDate = parseDate(eventDate);
     closeModal('appointmentModal');
     renderAll();
     showToast(supabase && state.user ? 'Impegno salvato e sincronizzato.' : 'Impegno salvato in questo browser.');
@@ -284,15 +527,22 @@ async function saveAppointment(event) {
 }
 async function deleteAppointment() {
   const id = $('appointmentId').value;
-  if (!id || !confirm('Vuoi eliminare questo impegno?')) return;
+  const item = state.appointments.find((entry) => entry.id === id);
+  if (!id || !item) return;
+  const occurrenceDate = $('appointmentOccurrenceDate').value || item.event_date;
+  const scope = recurrenceType(item) !== 'none' ? selectedSeriesScope() : 'series';
+  const question = recurrenceType(item) !== 'none' && scope === 'single'
+    ? `Vuoi eliminare soltanto l’occorrenza del ${occurrenceDate.split('-').reverse().join('/')}?`
+    : 'Vuoi eliminare questo impegno e tutta la sua serie?';
+  if (!confirm(question)) return;
   try {
-    if (supabase && state.user) {
-      const { error } = await supabase.from('appointments').delete().eq('id', id);
-      if (error) throw error;
-      await refreshAppointments();
+    if (recurrenceType(item) !== 'none' && scope === 'single') {
+      const updated = { ...item, excluded_dates: [...new Set([...(item.excluded_dates || []), occurrenceDate])] };
+      await persistAppointmentRows([updated]);
+      if (state.adminDemoViewing) logAdminAction('Eliminazione singola occorrenza', state.adminDemoViewing, `${item.title} · ${occurrenceDate}`);
     } else {
-      state.appointments = state.appointments.filter((item) => item.id !== id);
-      saveLocalAppointments();
+      await persistAppointmentRows([], [id]);
+      if (state.adminDemoViewing) logAdminAction('Eliminazione impegno/serie', state.adminDemoViewing, item.title);
     }
     closeModal('appointmentModal');
     renderAll();
@@ -301,7 +551,7 @@ async function deleteAppointment() {
 }
 async function refreshAppointments() {
   if (supabase && state.user) {
-    const { data, error } = await supabase.from('appointments').select('id,title,notes,event_date,event_time,reminder_enabled,reminder_time,reminder_at,reminder_sent_at').order('event_date').order('event_time');
+    const { data, error } = await supabase.from('appointments').select('id,title,notes,location,event_date,event_time,reminder_enabled,reminder_time,reminder_at,reminder_sent_at,repeat_type,repeat_weekday,repeat_until,excluded_dates').order('event_date').order('event_time');
     if (error) throw error;
     state.appointments = (data || []).map(normalizeRow);
   } else {
@@ -317,6 +567,7 @@ function updateAccountUI() {
   $('signedInEmail').textContent = email || 'Account collegato';
   $('accountSignedOut').classList.toggle('hidden', !!state.user);
   $('accountSignedIn').classList.toggle('hidden', !state.user);
+  $('adminDemoButton').classList.toggle('hidden', !!supabase);
   updateDemoNotice();
 }
 function setAuthMode(mode) {
@@ -444,6 +695,11 @@ $('addForSelectedDay').addEventListener('click', () => openNewAppointment(state.
 $('appointmentForm').addEventListener('submit', saveAppointment);
 $('deleteAppointmentButton').addEventListener('click', deleteAppointment);
 $('reminderEnabled').addEventListener('change', syncReminderTimeVisibility);
+$('appointmentRepeat').addEventListener('change', syncRecurrenceVisibility);
+$('repeatEndMode').addEventListener('change', syncRecurrenceVisibility);
+document.querySelectorAll('input[name="appointmentScope"]').forEach((input) => input.addEventListener('change', syncSeriesScopeDate));
+$('adminDemoButton').addEventListener('click', openAdminDemo);
+$('exitAdminViewButton').addEventListener('click', exitAdminDemoView);
 $('accountButton').addEventListener('click', () => openModal('accountModal'));
 $('authForm').addEventListener('submit', handleAuth);
 $('googleSignInButton').addEventListener('click', signInWithGoogle);
@@ -453,7 +709,7 @@ document.querySelectorAll('[data-auth-tab]').forEach((button) => button.addEvent
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => closeModal(button.dataset.close)));
 document.querySelectorAll('.modal-backdrop').forEach((backdrop) => backdrop.addEventListener('click', (event) => { if (event.target === backdrop) closeModal(backdrop.id); }));
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') { closeModal('appointmentModal'); closeModal('accountModal'); }
+  if (event.key === 'Escape') { closeModal('appointmentModal'); closeModal('accountModal'); closeModal('adminModal'); }
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); $('searchInput').focus(); }
 });
 $('searchInput').addEventListener('input', (event) => { state.search = event.target.value; renderAll(); });
