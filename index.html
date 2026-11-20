@@ -5,8 +5,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7f9fc">
-  <meta name="description" content="Agenda personale: calendario mensile, appuntamenti e promemoria." />
-  <title>Agenda 1.2 — I tuoi impegni, organizzati</title>
+  <meta name="description" content="Agenda personale per appuntamenti, calendario e promemoria.">
+  <title>Agenda 1.3</title>
   <link rel="icon" href="./asset-calendar.svg" type="image/svg+xml">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="./styles.css">
@@ -14,18 +14,30 @@
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <a class="brand" href="./" aria-label="Agenda, pagina iniziale">
-        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="3"/><path d="M8 3v4M16 3v4M4 9.5h16M8 13h2m4 0h2M8 17h2"/></svg></span>
+      <a class="brand" href="./" aria-label="Agenda">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <rect x="3.5" y="5" width="17" height="16" rx="3"/>
+            <path d="M8 3v4M16 3v4M4 9.5h16M8 13h2m4 0h2M8 17h2"/>
+          </svg>
+        </span>
         <span>Agenda</span>
       </a>
+
       <label class="searchbox" for="searchInput">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="10.8" cy="10.8" r="6.8"/>
+          <path d="m16 16 4.5 4.5"/>
+        </svg>
         <input id="searchInput" type="search" placeholder="Cerca un impegno..." autocomplete="off">
         <kbd>Ctrl K</kbd>
       </label>
+
       <div class="top-actions">
         <button class="account-button" id="accountButton" type="button">
-          <span class="avatar" id="avatar">U</span><span id="accountLabel">Account</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+          <span class="avatar" id="avatar">U</span>
+          <span id="accountLabel">Account</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
         </button>
       </div>
     </header>
@@ -39,74 +51,185 @@
         </div>
       </section>
 
-      <div class="notice hidden" id="setupNotice" role="status"></div>
-      <div class="admin-view-banner hidden" id="adminViewBanner" role="status"><span><strong>Modalità amministratore dimostrativa</strong> · Stai visualizzando l’agenda di <b id="adminViewedUserName">utente</b>.</span><button class="secondary-button" id="exitAdminViewButton" type="button">Torna alla tua agenda</button></div>
-      <div class="notice demo-notice" id="demoNotice" role="status">
-        <span class="notice-dot"></span><span>Anteprima locale: gli appuntamenti vengono salvati solo in questo browser. Collega il progetto Supabase per attivare account, sincronizzazione ed email.</span>
+      <div class="notice hidden" id="statusNotice" role="status"></div>
+
+      <div class="admin-view-banner hidden" id="adminViewBanner" role="status">
+        <span>
+          <strong>Visualizzazione amministrativa</strong>
+          · Agenda di <b id="adminViewedUserName">utente</b>
+        </span>
+        <button class="secondary-button" id="exitAdminViewButton" type="button">
+          Torna alla mia agenda
+        </button>
       </div>
 
-      <section class="workspace">
+      <section class="workspace" id="appWorkspace" hidden>
         <div class="calendar-panel panel">
           <div class="calendar-toolbar">
             <div class="calendar-toolbar-left">
-              <button class="primary-button" id="newAppointmentButton" type="button"><span class="plus">＋</span> Nuovo impegno</button>
+              <button class="primary-button" id="newAppointmentButton" type="button">
+                <span class="plus">＋</span> Nuovo impegno
+              </button>
               <div class="month-title-wrap">
-                <h2 id="monthTitle">Novembre 2026</h2>
+                <h2 id="monthTitle">Calendario</h2>
                 <button class="today-button" id="todayButton" type="button">Oggi</button>
               </div>
             </div>
             <div class="calendar-controls">
-              <button class="icon-button" id="prevMonth" type="button" aria-label="Mese precedente"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
-              <button class="icon-button" id="nextMonth" type="button" aria-label="Mese successivo"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+              <button class="icon-button" id="prevMonth" type="button" aria-label="Mese precedente">
+                <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+              <button class="icon-button" id="nextMonth" type="button" aria-label="Mese successivo">
+                <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
             </div>
           </div>
+
           <div class="weekday-row" aria-hidden="true">
-            <span>Lun</span><span>Mar</span><span>Mer</span><span>Gio</span><span>Ven</span><span>Sab</span><span>Dom</span>
+            <span>Lun</span><span>Mar</span><span>Mer</span><span>Gio</span>
+            <span>Ven</span><span>Sab</span><span>Dom</span>
           </div>
+
           <div class="calendar-grid" id="calendarGrid" aria-label="Calendario mensile"></div>
-          <div class="calendar-legend"><span><i class="legend-dot blue"></i> Impegno</span><span><i class="legend-dot green"></i> Promemoria attivo</span></div>
+
+          <div class="calendar-legend">
+            <span><i class="legend-dot blue"></i> Impegno</span>
+            <span><i class="legend-dot green"></i> Promemoria attivo</span>
+          </div>
         </div>
 
         <aside class="side-panel">
           <section class="panel selected-day-panel">
-            <div class="side-heading"><div><p class="eyebrow">AGENDA DEL GIORNO</p><h2 id="selectedDayTitle">Oggi</h2></div><span class="date-bubble" id="selectedDayNumber">19</span></div>
+            <div class="side-heading">
+              <div>
+                <p class="eyebrow">AGENDA DEL GIORNO</p>
+                <h2 id="selectedDayTitle">Oggi</h2>
+              </div>
+              <span class="date-bubble" id="selectedDayNumber">—</span>
+            </div>
             <div class="day-events" id="dayEvents"></div>
-            <button class="secondary-button full-width" id="addForSelectedDay" type="button">＋ Aggiungi a questo giorno</button>
+            <button class="secondary-button full-width" id="addForSelectedDay" type="button">
+              ＋ Aggiungi a questo giorno
+            </button>
           </section>
+
           <section class="panel upcoming-panel">
-            <div class="side-heading"><div><p class="eyebrow">DA TENERE D'OCCHIO</p><h2>Prossimi impegni</h2></div><span class="count-pill" id="upcomingCount">0</span></div>
+            <div class="side-heading">
+              <div>
+                <p class="eyebrow">DA TENERE D'OCCHIO</p>
+                <h2>Prossimi impegni</h2>
+              </div>
+              <span class="count-pill" id="upcomingCount">0</span>
+            </div>
             <div class="upcoming-list" id="upcomingList"></div>
           </section>
+
           <section class="panel reminder-panel">
-            <div class="reminder-icon"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></div>
-            <div><h3>Non dimenticare nulla</h3><p>Attiva le notifiche per ricevere un avviso anche quando non stai usando Agenda.</p></div>
-            <button class="secondary-button full-width" id="enableNotificationsButton" type="button">Attiva notifiche</button>
-            <p class="small-muted" id="notificationStatus">Le notifiche richiedono il consenso del dispositivo.</p>
+            <div class="reminder-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>
+              </svg>
+            </div>
+            <div>
+              <h3>Promemoria</h3>
+              <p>Gli avvisi automatici via email e le notifiche sul telefono richiedono la configurazione dei relativi servizi.</p>
+            </div>
+            <p class="small-muted" id="notificationStatus">Le preferenze dei promemoria vengono salvate con ogni impegno.</p>
           </section>
         </aside>
       </section>
+
+      <section class="auth-gate panel" id="authGate">
+        <div class="auth-gate-icon">
+          <svg viewBox="0 0 24 24">
+            <rect x="4" y="10" width="16" height="11" rx="2"/>
+            <path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+          </svg>
+        </div>
+        <p class="eyebrow">AREA PERSONALE</p>
+        <h2 id="authHeading">Accedi ad Agenda</h2>
+        <p class="auth-intro" id="authIntro">Accedi al tuo account per visualizzare il tuo calendario.</p>
+
+        <div class="auth-tabs">
+          <button class="auth-tab active" type="button" data-auth-tab="login">Accedi</button>
+          <button class="auth-tab" type="button" data-auth-tab="signup">Crea account</button>
+        </div>
+
+        <form id="authForm">
+          <div class="auth-name-row hidden" id="authNameRow">
+            <label class="field-label" for="authFullName">Nome</label>
+            <input class="text-input" id="authFullName" type="text" maxlength="80" autocomplete="name" placeholder="Il tuo nome">
+          </div>
+
+          <label class="field-label" for="authEmail">Indirizzo email</label>
+          <input class="text-input" id="authEmail" type="email" autocomplete="email" placeholder="nome@esempio.it" required>
+
+          <label class="field-label" for="authPassword">Password</label>
+          <input class="text-input" id="authPassword" type="password" minlength="8" autocomplete="current-password" placeholder="Almeno 8 caratteri" required>
+
+          <button class="primary-button full-width auth-submit" id="authSubmit" type="submit">Accedi</button>
+        </form>
+
+        <button class="text-button auth-reset-button" id="resetPasswordButton" type="button">
+          Hai dimenticato la password?
+        </button>
+
+        <div class="auth-divider"><span>oppure</span></div>
+
+        <button class="google-button full-width" id="googleSignInButton" type="button">
+          <span class="google-g">G</span> Continua con Google
+        </button>
+
+        <p class="auth-feedback" id="authFeedback" role="status" aria-live="polite"></p>
+        <p class="privacy-note">I tuoi appuntamenti sono personali e vengono associati al tuo account.</p>
+      </section>
+
       <footer class="footer-note">Agenda · I tuoi impegni, con semplicità.</footer>
     </main>
   </div>
 
+  <!-- Finestra per creare o modificare un impegno -->
   <div class="modal-backdrop hidden" id="appointmentModal" aria-hidden="true">
     <section class="modal appointment-modal" role="dialog" aria-modal="true" aria-labelledby="appointmentModalTitle">
-      <div class="modal-header"><div><p class="eyebrow">ORGANIZZA IL TUO TEMPO</p><h2 id="appointmentModalTitle">Nuovo impegno</h2></div><button class="icon-button close-modal" data-close="appointmentModal" aria-label="Chiudi" type="button">×</button></div>
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">ORGANIZZA IL TUO TEMPO</p>
+          <h2 id="appointmentModalTitle">Nuovo impegno</h2>
+        </div>
+        <button class="icon-button close-modal" data-close="appointmentModal" aria-label="Chiudi" type="button">×</button>
+      </div>
+
       <form id="appointmentForm">
         <input id="appointmentId" type="hidden">
+        <input id="appointmentOccurrenceDate" type="hidden">
+        <input id="appointmentSeriesStartDate" type="hidden">
+
         <label class="field-label" for="appointmentTitle">Cosa devi fare?</label>
         <input class="text-input" id="appointmentTitle" maxlength="90" placeholder="Es. Visita dal dottore" required>
+
         <label class="field-label" for="appointmentNotes">Dettagli <span>(facoltativo)</span></label>
         <textarea class="text-input textarea" id="appointmentNotes" maxlength="700" rows="3" placeholder="Aggiungi informazioni o note..."></textarea>
+
         <label class="field-label" for="appointmentLocation">Dove devi andare? <span>(facoltativo)</span></label>
         <input class="text-input" id="appointmentLocation" type="text" maxlength="250" autocomplete="street-address" placeholder="Es. Via Roma 10, Milano">
-        <p class="small-muted location-help">Inserisci indirizzo, numero civico e città. Nell'agenda comparirà il link per aprire la destinazione in Waze.</p>
+        <p class="small-muted location-help">Inserisci indirizzo, numero civico e città. Potrai aprire la destinazione in Waze.</p>
+
         <div class="form-row">
-          <div class="field-group"><label class="field-label" for="appointmentDate">Per quando? · Giorno</label><input class="text-input" id="appointmentDate" type="date" required></div>
-          <div class="field-group"><label class="field-label" for="appointmentTime">Ora</label><input class="text-input" id="appointmentTime" type="time" value="09:00" required></div>
+          <div class="field-group">
+            <label class="field-label" for="appointmentDate">Per quando?</label>
+            <input class="text-input" id="appointmentDate" type="date" required>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="appointmentTime">Ora</label>
+            <input class="text-input" id="appointmentTime" type="time" value="09:00" required>
+          </div>
         </div>
+
         <div class="repeat-settings">
-          <div class="repeat-heading"><strong>Ripetizione</strong><span>Preimpostato: non si ripete</span></div>
+          <div class="repeat-heading">
+            <strong>Ripetizione</strong>
+            <span>Preimpostato: non si ripete</span>
+          </div>
           <label class="field-label" for="appointmentRepeat">Ripeti</label>
           <select class="text-input" id="appointmentRepeat">
             <option value="none" selected>Non si ripete</option>
@@ -115,65 +238,113 @@
             <option value="monthly">Ogni mese</option>
             <option value="yearly">Ogni anno</option>
           </select>
-          <div class="field-group hidden" id="repeatWeekdayRow"><label class="field-label" for="repeatWeekday">Giorno della settimana</label>
-            <select class="text-input" id="repeatWeekday"><option value="1">Lunedì</option><option value="2">Martedì</option><option value="3">Mercoledì</option><option value="4" selected>Giovedì</option><option value="5">Venerdì</option><option value="6">Sabato</option><option value="0">Domenica</option></select>
+
+          <div class="field-group hidden" id="repeatWeekdayRow">
+            <label class="field-label" for="repeatWeekday">Giorno della settimana</label>
+            <select class="text-input" id="repeatWeekday">
+              <option value="1">Lunedì</option>
+              <option value="2">Martedì</option>
+              <option value="3">Mercoledì</option>
+              <option value="4">Giovedì</option>
+              <option value="5">Venerdì</option>
+              <option value="6">Sabato</option>
+              <option value="0">Domenica</option>
+            </select>
           </div>
+
           <label class="field-label" for="repeatEndMode">Termina</label>
-          <select class="text-input" id="repeatEndMode"><option value="never" selected>Mai</option><option value="date">In una data specifica</option></select>
-          <div class="field-group hidden" id="repeatUntilRow"><label class="field-label" for="repeatUntil">Ultimo giorno della ripetizione</label><input class="text-input" id="repeatUntil" type="date"></div>
+          <select class="text-input" id="repeatEndMode">
+            <option value="never" selected>Mai</option>
+            <option value="date">In una data specifica</option>
+          </select>
+
+          <div class="field-group hidden" id="repeatUntilRow">
+            <label class="field-label" for="repeatUntil">Ultimo giorno della ripetizione</label>
+            <input class="text-input" id="repeatUntil" type="date">
+          </div>
         </div>
+
         <div class="series-scope hidden" id="seriesScopeRow">
           <strong>Che cosa vuoi modificare?</strong>
           <label><input type="radio" name="appointmentScope" value="single" checked> Solo questa occorrenza</label>
           <label><input type="radio" name="appointmentScope" value="series"> Tutta la serie</label>
-          <p class="small-muted">Se scegli una sola occorrenza puoi spostare quella data. Se scegli tutta la serie puoi cambiare la data iniziale e la regola di ripetizione.</p>
+          <p class="small-muted">Puoi modificare o cancellare una singola data senza eliminare tutta la serie.</p>
         </div>
+
         <div class="reminder-settings">
-          <div class="reminder-setting-top"><div><strong>Promemoria</strong><p>Ricevi un avviso il giorno prima.</p></div><label class="switch"><input id="reminderEnabled" type="checkbox" checked><span class="switch-slider"></span></label></div>
-          <div class="reminder-time-row" id="reminderTimeRow"><label class="field-label" for="reminderTime">A che ora vuoi essere avvisato?</label><input class="text-input time-compact" id="reminderTime" type="time" value="09:00"></div>
-          <p class="small-muted">L'orario viene salvato insieme all'impegno. Gli invii automatici richiedono il servizio server: per le serie ricorrenti dovrà gestire ogni singola occorrenza.</p>
+          <div class="reminder-setting-top">
+            <div>
+              <strong>Promemoria</strong>
+              <p>Ricevi un avviso il giorno prima.</p>
+            </div>
+            <label class="switch">
+              <input id="reminderEnabled" type="checkbox" checked>
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+          <div class="reminder-time-row" id="reminderTimeRow">
+            <label class="field-label" for="reminderTime">A che ora vuoi essere avvisato?</label>
+            <input class="text-input time-compact" id="reminderTime" type="time" value="09:00">
+          </div>
         </div>
-        <input id="appointmentOccurrenceDate" type="hidden">
-        <input id="appointmentSeriesStartDate" type="hidden">
+
         <div class="form-error" id="appointmentError" role="alert"></div>
-        <div class="modal-actions"><button class="text-button danger hidden" id="deleteAppointmentButton" type="button">Elimina impegno</button><span class="action-spacer"></span><button class="secondary-button" data-close="appointmentModal" type="button">Annulla</button><button class="primary-button" type="submit" id="saveAppointmentButton">Salva impegno</button></div>
+
+        <div class="modal-actions">
+          <button class="text-button danger hidden" id="deleteAppointmentButton" type="button">Elimina impegno</button>
+          <span class="action-spacer"></span>
+          <button class="secondary-button" data-close="appointmentModal" type="button">Annulla</button>
+          <button class="primary-button" type="submit" id="saveAppointmentButton">Salva impegno</button>
+        </div>
       </form>
     </section>
   </div>
 
+  <!-- Profilo e sessione -->
   <div class="modal-backdrop hidden" id="accountModal" aria-hidden="true">
     <section class="modal account-modal" role="dialog" aria-modal="true" aria-labelledby="accountModalTitle">
-      <div class="modal-header"><div><p class="eyebrow">IL TUO ACCOUNT</p><h2 id="accountModalTitle">Accedi ad Agenda</h2></div><button class="icon-button close-modal" data-close="accountModal" aria-label="Chiudi" type="button">×</button></div>
-      <div id="accountSignedOut">
-        <div class="auth-tabs"><button class="auth-tab active" data-auth-tab="login" type="button">Accedi</button><button class="auth-tab" data-auth-tab="signup" type="button">Crea account</button></div>
-        <form id="authForm">
-          <label class="field-label" for="authEmail">Indirizzo email</label><input class="text-input" id="authEmail" type="email" autocomplete="email" placeholder="nome@esempio.it" required>
-          <label class="field-label" for="authPassword">Password</label><input class="text-input" id="authPassword" type="password" minlength="6" autocomplete="current-password" placeholder="Almeno 6 caratteri" required>
-          <button class="primary-button full-width auth-submit" id="authSubmit" type="submit">Accedi</button>
-        </form>
-        <div class="auth-divider"><span>oppure</span></div>
-        <button class="google-button full-width" id="googleSignInButton" type="button"><span class="google-g">G</span> Continua con Google</button>
-        <p class="auth-feedback" id="authFeedback" role="status"></p>
-        <button class="secondary-button full-width admin-demo-button" id="adminDemoButton" type="button">Apri pannello amministratore · DEMO</button>
-        <p class="privacy-note">La modalità dimostrativa usa utenti inventati e non verifica account reali. Non inserire password vere.</p>
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">IL TUO PROFILO</p>
+          <h2 id="accountModalTitle">Il mio account</h2>
+        </div>
+        <button class="icon-button close-modal" data-close="accountModal" aria-label="Chiudi" type="button">×</button>
       </div>
-      <div class="account-signed-in hidden" id="accountSignedIn"><div class="signed-in-avatar" id="signedInAvatar">U</div><h3 id="signedInEmail">Account collegato</h3><p>I tuoi appuntamenti vengono sincronizzati nel tuo account.</p><button class="secondary-button full-width" id="signOutButton" type="button">Esci dall'account</button></div>
+
+      <div class="account-signed-in">
+        <div class="signed-in-avatar" id="signedInAvatar">U</div>
+        <h3 id="signedInName">Utente</h3>
+        <p id="signedInEmail"></p>
+        <button class="secondary-button full-width" id="adminPanelButton" type="button" hidden>
+          Gestione utenti
+        </button>
+        <button class="secondary-button full-width" id="signOutButton" type="button">
+          Esci dall'account
+        </button>
+      </div>
+      <p class="auth-feedback" id="accountFeedback" role="status"></p>
     </section>
   </div>
 
+  <!-- Gestione account: disponibile solo per amministratori verificati -->
   <div class="modal-backdrop hidden" id="adminModal" aria-hidden="true">
     <section class="modal admin-modal" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
-      <div class="modal-header"><div><p class="eyebrow">AREA RISERVATA · SOLO DIMOSTRAZIONE</p><h2 id="adminModalTitle">Pannello amministratore</h2></div><button class="icon-button close-modal" data-close="adminModal" aria-label="Chiudi" type="button">×</button></div>
-      <div class="admin-demo-warning"><strong>Modalità demo non protetta</strong><p>Gli utenti qui sotto sono esempi inventati. Il pannello non autorizza un amministratore reale e non accede ad account online.</p></div>
-      <h3 class="admin-section-title">Elenco utenti di esempio</h3>
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">AREA AMMINISTRATIVA</p>
+          <h2 id="adminModalTitle">Gestione utenti</h2>
+        </div>
+        <button class="icon-button close-modal" data-close="adminModal" aria-label="Chiudi" type="button">×</button>
+      </div>
+      <label class="field-label" for="adminUserSearch">Cerca utente</label>
+      <input class="text-input" id="adminUserSearch" type="search" placeholder="Nome o email">
       <div id="adminUserList" class="admin-user-list"></div>
-      <h3 class="admin-section-title">Registro attività</h3>
-      <p class="small-muted">Le operazioni eseguite in questa simulazione sono registrate qui. Non vengono inviate notifiche agli utenti demo.</p>
-      <div id="adminAuditList" class="admin-audit-list"></div>
+      <p class="small-muted" id="adminFeedback" role="status"></p>
     </section>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
   <script src="./config.js"></script>
   <script type="module" src="./app.js"></script>
 </body>
