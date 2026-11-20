@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="it">
 <head>
@@ -5,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7f9fc">
   <meta name="description" content="Agenda personale: calendario mensile, appuntamenti e promemoria." />
-  <title>Agenda — I tuoi impegni, organizzati</title>
+  <title>Agenda 1.2 — I tuoi impegni, organizzati</title>
   <link rel="icon" href="./asset-calendar.svg" type="image/svg+xml">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="./styles.css">
@@ -39,6 +40,7 @@
       </section>
 
       <div class="notice hidden" id="setupNotice" role="status"></div>
+      <div class="admin-view-banner hidden" id="adminViewBanner" role="status"><span><strong>Modalità amministratore dimostrativa</strong> · Stai visualizzando l’agenda di <b id="adminViewedUserName">utente</b>.</span><button class="secondary-button" id="exitAdminViewButton" type="button">Torna alla tua agenda</button></div>
       <div class="notice demo-notice" id="demoNotice" role="status">
         <span class="notice-dot"></span><span>Anteprima locale: gli appuntamenti vengono salvati solo in questo browser. Collega il progetto Supabase per attivare account, sincronizzazione ed email.</span>
       </div>
@@ -49,7 +51,7 @@
             <div class="calendar-toolbar-left">
               <button class="primary-button" id="newAppointmentButton" type="button"><span class="plus">＋</span> Nuovo impegno</button>
               <div class="month-title-wrap">
-              <h2 id="monthTitle">Novembre 2026</h2>
+                <h2 id="monthTitle">Novembre 2026</h2>
                 <button class="today-button" id="todayButton" type="button">Oggi</button>
               </div>
             </div>
@@ -95,16 +97,44 @@
         <label class="field-label" for="appointmentTitle">Cosa devi fare?</label>
         <input class="text-input" id="appointmentTitle" maxlength="90" placeholder="Es. Visita dal dottore" required>
         <label class="field-label" for="appointmentNotes">Dettagli <span>(facoltativo)</span></label>
-        <textarea class="text-input textarea" id="appointmentNotes" maxlength="700" rows="3" placeholder="Aggiungi indirizzo, informazioni o note..."></textarea>
+        <textarea class="text-input textarea" id="appointmentNotes" maxlength="700" rows="3" placeholder="Aggiungi informazioni o note..."></textarea>
+        <label class="field-label" for="appointmentLocation">Dove devi andare? <span>(facoltativo)</span></label>
+        <input class="text-input" id="appointmentLocation" type="text" maxlength="250" autocomplete="street-address" placeholder="Es. Via Roma 10, Milano">
+        <p class="small-muted location-help">Inserisci indirizzo, numero civico e città. Nell'agenda comparirà il link per aprire la destinazione in Waze.</p>
         <div class="form-row">
           <div class="field-group"><label class="field-label" for="appointmentDate">Per quando? · Giorno</label><input class="text-input" id="appointmentDate" type="date" required></div>
           <div class="field-group"><label class="field-label" for="appointmentTime">Ora</label><input class="text-input" id="appointmentTime" type="time" value="09:00" required></div>
         </div>
+        <div class="repeat-settings">
+          <div class="repeat-heading"><strong>Ripetizione</strong><span>Preimpostato: non si ripete</span></div>
+          <label class="field-label" for="appointmentRepeat">Ripeti</label>
+          <select class="text-input" id="appointmentRepeat">
+            <option value="none" selected>Non si ripete</option>
+            <option value="daily">Ogni giorno</option>
+            <option value="weekly">Ogni settimana</option>
+            <option value="monthly">Ogni mese</option>
+            <option value="yearly">Ogni anno</option>
+          </select>
+          <div class="field-group hidden" id="repeatWeekdayRow"><label class="field-label" for="repeatWeekday">Giorno della settimana</label>
+            <select class="text-input" id="repeatWeekday"><option value="1">Lunedì</option><option value="2">Martedì</option><option value="3">Mercoledì</option><option value="4" selected>Giovedì</option><option value="5">Venerdì</option><option value="6">Sabato</option><option value="0">Domenica</option></select>
+          </div>
+          <label class="field-label" for="repeatEndMode">Termina</label>
+          <select class="text-input" id="repeatEndMode"><option value="never" selected>Mai</option><option value="date">In una data specifica</option></select>
+          <div class="field-group hidden" id="repeatUntilRow"><label class="field-label" for="repeatUntil">Ultimo giorno della ripetizione</label><input class="text-input" id="repeatUntil" type="date"></div>
+        </div>
+        <div class="series-scope hidden" id="seriesScopeRow">
+          <strong>Che cosa vuoi modificare?</strong>
+          <label><input type="radio" name="appointmentScope" value="single" checked> Solo questa occorrenza</label>
+          <label><input type="radio" name="appointmentScope" value="series"> Tutta la serie</label>
+          <p class="small-muted">Se scegli una sola occorrenza puoi spostare quella data. Se scegli tutta la serie puoi cambiare la data iniziale e la regola di ripetizione.</p>
+        </div>
         <div class="reminder-settings">
           <div class="reminder-setting-top"><div><strong>Promemoria</strong><p>Ricevi un avviso il giorno prima.</p></div><label class="switch"><input id="reminderEnabled" type="checkbox" checked><span class="switch-slider"></span></label></div>
           <div class="reminder-time-row" id="reminderTimeRow"><label class="field-label" for="reminderTime">A che ora vuoi essere avvisato?</label><input class="text-input time-compact" id="reminderTime" type="time" value="09:00"></div>
-          <p class="small-muted">L'email e la notifica verranno inviate il giorno precedente, all'orario scelto.</p>
+          <p class="small-muted">L'orario viene salvato insieme all'impegno. Gli invii automatici richiedono il servizio server: per le serie ricorrenti dovrà gestire ogni singola occorrenza.</p>
         </div>
+        <input id="appointmentOccurrenceDate" type="hidden">
+        <input id="appointmentSeriesStartDate" type="hidden">
         <div class="form-error" id="appointmentError" role="alert"></div>
         <div class="modal-actions"><button class="text-button danger hidden" id="deleteAppointmentButton" type="button">Elimina impegno</button><span class="action-spacer"></span><button class="secondary-button" data-close="appointmentModal" type="button">Annulla</button><button class="primary-button" type="submit" id="saveAppointmentButton">Salva impegno</button></div>
       </form>
@@ -124,9 +154,22 @@
         <div class="auth-divider"><span>oppure</span></div>
         <button class="google-button full-width" id="googleSignInButton" type="button"><span class="google-g">G</span> Continua con Google</button>
         <p class="auth-feedback" id="authFeedback" role="status"></p>
-        <p class="privacy-note">I tuoi appuntamenti sono privati e associati al tuo account. Non condividere mai la tua password.</p>
+        <button class="secondary-button full-width admin-demo-button" id="adminDemoButton" type="button">Apri pannello amministratore · DEMO</button>
+        <p class="privacy-note">La modalità dimostrativa usa utenti inventati e non verifica account reali. Non inserire password vere.</p>
       </div>
       <div class="account-signed-in hidden" id="accountSignedIn"><div class="signed-in-avatar" id="signedInAvatar">U</div><h3 id="signedInEmail">Account collegato</h3><p>I tuoi appuntamenti vengono sincronizzati nel tuo account.</p><button class="secondary-button full-width" id="signOutButton" type="button">Esci dall'account</button></div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop hidden" id="adminModal" aria-hidden="true">
+    <section class="modal admin-modal" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
+      <div class="modal-header"><div><p class="eyebrow">AREA RISERVATA · SOLO DIMOSTRAZIONE</p><h2 id="adminModalTitle">Pannello amministratore</h2></div><button class="icon-button close-modal" data-close="adminModal" aria-label="Chiudi" type="button">×</button></div>
+      <div class="admin-demo-warning"><strong>Modalità demo non protetta</strong><p>Gli utenti qui sotto sono esempi inventati. Il pannello non autorizza un amministratore reale e non accede ad account online.</p></div>
+      <h3 class="admin-section-title">Elenco utenti di esempio</h3>
+      <div id="adminUserList" class="admin-user-list"></div>
+      <h3 class="admin-section-title">Registro attività</h3>
+      <p class="small-muted">Le operazioni eseguite in questa simulazione sono registrate qui. Non vengono inviate notifiche agli utenti demo.</p>
+      <div id="adminAuditList" class="admin-audit-list"></div>
     </section>
   </div>
 
