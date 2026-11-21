@@ -17,9 +17,10 @@ const state = {
   currentDate: new Date(),
   selectedDate: toISODate(new Date()),
   search: '',
-  authMode: 'login',
-  loading: false,
-  adminUsers: []
+ authMode: 'login',
+loading: false,
+passwordRecovery: false,
+adminUsers: []
 };
 
 const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
