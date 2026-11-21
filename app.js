@@ -1302,9 +1302,15 @@ async function initialize() {
     });
 
     if (new URLSearchParams(window.location.search).has('password_recovery')) {
-      $('authFeedback').textContent =
-        'Apri il link ricevuto via email per proseguire con il recupero della password.';
-    }
+
+  if (data.session?.user) {
+    showPasswordRecoveryPanel();
+  } else {
+    $('authFeedback').textContent =
+      'Il collegamento non ha avviato una sessione di recupero. Richiedi una nuova email.';
+  }
+
+}
   } catch (error) {
     console.error(error);
     setNotice(
