@@ -473,8 +473,13 @@ function renderUpcoming() {
 function renderAll() {
   const signedIn = Boolean(state.user);
 
-  $('authGate').classList.toggle('hidden', signedIn);
-  $('appWorkspace').hidden = !signedIn;
+ $('authGate').classList.toggle(
+  'hidden',
+  signedIn && !state.passwordRecovery
+);
+
+$('appWorkspace').hidden =
+  !signedIn || state.passwordRecovery;
   $('adminViewBanner').classList.toggle(
     'hidden',
     !state.adminViewingUserId
