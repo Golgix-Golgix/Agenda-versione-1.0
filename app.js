@@ -1282,7 +1282,11 @@ async function initialize() {
       renderAll();
     }
 
-    state.supabase.auth.onAuthStateChange((_event, session) => {
+    state.supabase.auth.onAuthStateChange((event, session) => {
+
+  if (event === 'PASSWORD_RECOVERY') {
+    showPasswordRecoveryPanel();
+  }
       const user = session?.user || null;
 
       // Il caricamento parte fuori dal callback Auth.
