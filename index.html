@@ -2,7 +2,8 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8">
+  <meta charset="u
+    tf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7f9fc">
   <meta name="description" content="Agenda personale per appuntamenti, calendario e promemoria.">
@@ -181,6 +182,53 @@
         </button>
 
         <p class="auth-feedback" id="authFeedback" role="status" aria-live="polite"></p>
+        <div class="hidden" id="passwordRecoveryPanel">
+  <form id="passwordRecoveryForm">
+
+    <label class="field-label" for="recoveryPassword">
+      Nuova password
+    </label>
+
+    <input
+      class="text-input"
+      id="recoveryPassword"
+      type="password"
+      minlength="8"
+      autocomplete="new-password"
+      placeholder="Almeno 8 caratteri"
+      required
+    >
+
+    <label class="field-label" for="recoveryPasswordConfirm">
+      Conferma nuova password
+    </label>
+
+    <input
+      class="text-input"
+      id="recoveryPasswordConfirm"
+      type="password"
+      minlength="8"
+      autocomplete="new-password"
+      placeholder="Ripeti la nuova password"
+      required
+    >
+
+    <button
+      class="primary-button full-width"
+      id="saveRecoveryPasswordButton"
+      type="submit"
+    >
+      Aggiorna password
+    </button>
+
+    <p
+      class="auth-feedback"
+      id="passwordRecoveryFeedback"
+      role="status"
+      aria-live="polite"
+    ></p>
+  </form>
+</div>
         <p class="privacy-note">I tuoi appuntamenti sono personali e vengono associati al tuo account.</p>
       </section>
 
