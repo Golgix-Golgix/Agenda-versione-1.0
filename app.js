@@ -1407,6 +1407,10 @@ $('accountButton').addEventListener('click', () => {
 });
 
 $('authForm').addEventListener('submit', handleAuth);
+$('passwordRecoveryForm').addEventListener(
+  'submit',
+  handlePasswordRecoverySubmit
+);
 $('googleSignInButton').addEventListener('click', handleGoogleSignIn);
 $('resetPasswordButton').addEventListener('click', handlePasswordReset);
 $('signOutButton').addEventListener('click', signOut);
