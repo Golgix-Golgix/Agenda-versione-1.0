@@ -956,7 +956,107 @@ async function handlePasswordReset() {
     ? error.message
     : 'Se l’indirizzo è registrato, riceverai un messaggio per reimpostare la password.';
 }
+function showPasswordRecoveryPanel() {
+  state.passwordRecovery = true;
 
+  $('passwordRecoveryPanel').classList.remove('hidden');
+  $('authForm').classList.add('hidden');
+
+  document.querySelector('.auth-tabs')
+    ?.classList.add('hidden');
+
+  $('resetPasswordButton').classList.add('hidden');
+
+  document.querySelector('.auth-divider')
+    ?.classList.add('hidden');
+
+  $('googleSignInButton').classList.add('hidden');
+
+  $('authHeading').textContent =
+    'Imposta una nuova password';
+
+  $('authIntro').textContent =
+    'Scegli una nuova password per recuperare il tuo account.';
+
+  $('passwordRecoveryFeedback').textContent = '';
+
+  renderAll();
+}
+
+
+async function handlePasswordRecoverySubmit(event) {
+  event.preventDefault();
+
+  const password = $('recoveryPassword').value;
+  const confirmation = $('recoveryPasswordConfirm').value;
+
+  const feedback = $('passwordRecoveryFeedback');
+  const button = $('saveRecoveryPasswordButton');
+
+  if (!state.supabase) {
+    feedback.textContent = 'Servizio non disponibile. Riprova.';
+    return;
+  }
+
+  if (password.length < 8) {
+    feedback.textContent =
+      'La password deve contenere almeno 8 caratteri.';
+    return;
+  }
+
+  if (password !== confirmation) {
+    feedback.textContent =
+      'Le due password non coincidono.';
+    return;
+  }
+
+  setButtonBusy(button, true, 'Aggiornamento...');
+  feedback.textContent = '';
+
+  try {
+    const { data, error } =
+      await state.supabase.auth.updateUser({
+        password: password
+      });
+
+    if (error) throw error;
+
+    state.passwordRecovery = false;
+
+    $('passwordRecoveryPanel').classList.add('hidden');
+    $('authForm').classList.remove('hidden');
+
+    document.querySelector('.auth-tabs')
+      ?.classList.remove('hidden');
+
+    document.querySelector('.auth-divider')
+      ?.classList.remove('hidden');
+
+    $('googleSignInButton').classList.remove('hidden');
+
+    $('passwordRecoveryForm').reset();
+
+    setAuthMode('login');
+
+    window.history.replaceState(
+      {},
+      document.title,
+      window.location.pathname
+    );
+
+    await loadUserSession(data.user || state.user);
+
+    showToast('Password aggiornata correttamente.');
+
+  } catch (error) {
+    feedback.textContent =
+      error.message ||
+      'Non è stato possibile aggiornare la password.';
+
+  } finally {
+    setButtonBusy(button, false);
+  }
+}
 /* SESSIONE E PROFILO */
 
 async function loadUserSession(user) {
